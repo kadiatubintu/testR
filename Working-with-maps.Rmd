@@ -1,0 +1,234 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+---
+title: "R Notebook"
+author: "Kadiatu Kamara"
+L
+https://www.dropbox.com/s/w40rxdqwconh49j/MedianZIP.xlsx?dl=0 
+
+```{r}
+# 1 Read the data
+library('readxl')
+getwd()
+setwd("C:/Users/Kadiatu/Downloads/syracuse/wk7")
+my_Data<-read.table(file = "clipboard", sep = "\t", header = TRUE)
+my_Data <-read_excel('MedianZip.xlsx')
+my_Data
+
+```
+
+# 2 Clean up the data
+
+```{r}
+#getting data details
+str(my_Data)
+View(my_Data)
+colnames(my_Data)
+nrow(my_Data)
+```
+
+#rename the columns ("zip", "Median", "Mean", "Population")
+```{r}
+colnames(my_Data)<-c("zip", "Median", "Mean", "Population")
+my_Data
+my_Data[-1,]
+```
+
+
+# remove any info at the front of the file that's not needed. THis will require you to explore the data
+```{r}
+
+```
+
+ 
+# FYI. You'll need to remove the commas for numbers and conver to numeric (function hints: gsub() and as.numeric() )
+```{r}
+my_Data$zip <-as.numeric(my_Data$zip)
+my_Data$Median <-as.numeric(my_Data$Median)
+my_Data$Mean <-as.numeric(my_Data$Mean)
+my_Data$Population <-as.numeric(my_Data$Population)
+my_Data
+```
+```{r}
+my_Data <-ceiling(my_Data)
+my_Data
+my_Data <-my_Data[-1,]
+my_Data
+```
+  
+
+# 3 Install and load the "zipcode" package. There is a dataset in zipcode that contains the following information: "zip","city","state","latitude","longitude" You can call the data by using the following code. 
+
+```{r}
+library("zipcode")
+data(zipcode)
+zipcode <-(zipcode)
+zipcode
+```
+
+# 4 Merge the zipcode dataframe information into one dataframe using the merge() function. FYI you'll need to clean the zipcodes in in the original data by running clean.zipcodes(zips). clean.zipcodes is a function in the zipcode package.
+```{r}
+my_Data$zip <-clean.zipcodes(my_Data$zip)
+
+my_DataZipCode <-merge(my_Data, zipcode, by = "zip")
+my_DataZipCode <-data.frame(my_DataZipCode)
+my_DataZipCode$zip <-as.numeric(my_DataZipCode$zip)
+my_DataZipCode
+
+```
+
+# 5 Remove Hawaii and Alaska from the dataframe you created in #4
+```
+```{r}
+my_data_state <-(my_DataZipCode)
+
+my_data_remove_states <-subset(my_data_state, (!my_data_state$state %in% unique(my_data_state$state[state == "HI"]) & !my_data_state$state %in% unique(my_data_state$state[state == "AK"])))
+
+my_data_remove_states
+
+unique(my_data_remove_states$state)
+
+```
+
+### Step 2: Show the income & population per state
+
+# 1 Create a simpler dataframe,with just the average median income and the population for each state (hint: create these seperately using tapply() and then combine them using merge() )
+
+```{r}
+my_dataPop <-(my_data_remove_states)
+my_dataPop
+
+my_dataPop <-na.omit(my_dataPop)
+my_dataPop
+
+my_dataPop1 <-tapply(my_dataPop$Mean, my_dataPop$state, mean )
+my_dataPop1
+
+my_dataInc <-(my_data_remove_states)
+my_dataInc
+
+my_dataInc <-na.omit(my_dataInc)
+my_dataInc
+
+my_dataInc1 <-tapply(my_dataInc$Population, my_dataInc$state, mean )
+my_dataInc1
+
+rownames(my_dataPop1)
+
+state_abbr <-rownames(my_dataPop1)
+state_abbr
+
+my_data_Population <-data.frame(state_abbr, my_dataPop1)
+my_data_Population
+
+my_data_Income <-data.frame(state_abbr, my_dataInc1)
+my_data_Income
+
+
+combined_data <- merge(my_data_Income, my_data_Population, by= "state_abbr" )
+combined_data <-data.frame(combined_data)
+combined_data
+```
+
+  
+# 2 Add the state abbreviations and the state names as new columns  get the state name (not just the abbreviations) and make sure the state names are all lower case. You can get statenames by using calling View(state.name) its a base dataset in R
+```{r}
+#df <-data.frame(my_dataPop1, my_dataInc1)
+#df
+
+#colnames(df) <-c("my_dataInc1", "my_dataPop1")
+#colnames(df)
+
+##dfId <- seq.int(nrow(df))
+#dfId
+
+state_abbr <-(state.abb)
+state_abbr
+
+state_name <-tolower(state.name)
+state_name
+
+states <-data.frame(state_name, state_abbr)
+states
+
+combine_all_data <-merge(states, combined_data, by = "state_abbr")
+combine_all_data
+```
+
+# 3 Show the U.S. map, representing the color with the average median income of that state
+```{r}
+library("ggplot2")
+library('maps')
+library("mapdata")
+library("tidyverse")
+library("ggmap")
+library("mapproj")
+
+us <- map_data("state")
+us
+
+USInc <- ggplot(combine_all_data, aes(map_id = state_name))
+USInc
+USInc <-USInc + geom_map(map=us, aes(fill=combine_all_data$my_dataPop1), color="black")
+USInc
+USInc <-USInc + expand_limits(x=us$long, y=us$lat)
+USInc
+USInc <-USInc + ggtitle("US Income per state")
+USInc
+
+```
+
+# 4 Show the U.S. map, with color representing the population of the state using the function tolower()
+```{r}
+USPop <- ggplot(combine_all_data, aes(map_id = state_name))
+USPop
+USPop <-USPop + geom_map(map=us, aes(fill=combine_all_data$my_dataInc1), color="black")
+USPop
+USPop <-USPop + expand_limits(x=us$long, y=us$lat)
+USPop
+USPop <-USPop + ggtitle("US Population per state")
+USPop
+
+str(us)
+```
+
+### Step 3: Show the income per zip code
+Have draw each zip code on the map, where the color of the ‘dot’ is based on the median income. To make the map look appealing, have the background of the map be black.
+```{r}
+USZip <- ggplot(my_DataZipCode, aes( map_id = zip)) 
+
+#USZip <-USZip + geom_map(map=us, aes( x= my_DataZipCode$Median, y = my_DataZipCode$zip))
+
+USZip <-USZip + expand_limits(x=us$long, y=us$lat)
+
+USZip <-USZip+ geom_point(data = my_DataZipCode, aes(x = my_DataZipCode$longitude, y = my_DataZipCode$latitude,  color= my_DataZipCode$Median))
+
+USZip <-USZip + ggtitle("US Income per Zip Code")
+USZip
+
+
+```
+
+### Step 4: Show Zip Code Density
+Now generate a different map, one where we can easily see where there are lots of zip codes, and where there are few (using the ‘stat_density2d’ function).
+```{r}
+
+USZip2 <- USZip + geom_density_2d(data = my_DataZipCode, aes(x = my_DataZipCode$longitude, y = my_DataZipCode$latitude))
+USZip2
+USZip2 <-USZip2 + ggtitle("US Density per Zip Code")
+USZip2
+```
+ 
+### Step 5: Zoom in to the region around NYC 
+Repeat steps 3 & 4, but have the image / map be of the northeast U.S. (centered around New York).
+```{r}
+
+
+
+
+```
+
+
